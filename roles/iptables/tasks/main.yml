@@ -1,0 +1,23 @@
+---
+
+- name: Install iptables-persistent
+  apt:
+    name: iptables-persistent
+
+- name: Create iptables v4 rules
+  template: 
+    src: "rules.v4"
+    dest: /etc/iptables/rules.v4
+  notify: 
+    - Refresh iptables v4
+
+- meta: flush_handlers
+
+- name: Create iptables v6 rules
+  template: 
+    src: "rules.v6"
+    dest: /etc/iptables/rules.v6
+  notify: 
+    - Refresh iptables v6
+
+- meta: flush_handlers

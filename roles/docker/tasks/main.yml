@@ -1,0 +1,53 @@
+---
+
+- name: Install docker prerequisites
+  apt:
+    name: apt-transport-https,ca-certificates
+
+- name: Create apt preferences
+  copy:
+    dest: /etc/apt/preferences.d/docker-ce
+    content: |
+      Package: docker-ce
+      Pin: version 18.06.*
+      Pin-Priority: 500
+
+      Package: docker-ce
+      Pin: version *
+      Pin-Priority: -1
+
+- name: Add docker repository key
+  apt_key:
+    keyserver: keyserver.ubuntu.com
+    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+
+- name: Add docker repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    update_cache: yes
+
+- name: Install docker
+  apt: name=docker-ce
+
+- name: Configure docker
+  copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "storage-driver": "overlay2",
+        "iptables": {{ 'true' if docker_iptables|default(false) else 'false' }},
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "25m",
+          "max-file": "4"
+        }
+      }
+  notify: Restart docker
+
+- meta: flush_handlers
+
+- name: Enable docker
+  service:
+    name: docker
+    state: started
+    enabled: true

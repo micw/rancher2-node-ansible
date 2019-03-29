@@ -1,0 +1,6 @@
+---
+
+# ansible group for a wireguard-mesh-network
+wireguard_group: wireguard
+
+wireguard_netmask: 255.255.255.0

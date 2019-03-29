@@ -1,0 +1,70 @@
+---
+
+- name: Fail on wrong debian version
+  fail: msg="Wireguard role is only supported on debian >=9"
+  when: ansible_distribution!='Debian' or ansible_distribution_version|int<9
+
+- name: Enable unstable repo on debian <10
+  when: ansible_distribution_version|int<10
+  copy: "src={{ item.src }} dest={{ item.dest }}"
+  with_items:
+    - src: apt-limit-unstable
+      dest: /etc/apt/preferences.d/limit-unstable
+    - src: apt-unstable.list
+      dest: /etc/apt/sources.list.d/unstable.list
+  notify:
+    - Refresh apt
+
+- meta: flush_handlers
+
+- name: Install Wireguard
+  apt:
+    name: wireguard
+
+
+- name: Create wireguard keypair if not exists
+  shell: |
+    wg genkey > /etc/wireguard/wg0-private.key
+    chmod 0600 /etc/wireguard/wg0-private.key
+    wg pubkey < /etc/wireguard/wg0-private.key > /etc/wireguard/wg0-public.key
+  args:
+    creates: /etc/wireguard/wg0-public.key
+
+- name: Fail if we do not run on all hosts in group
+  when: play_hosts != groups[wireguard_group]
+  fail: msg="Please run this role on all hosts on group '{{ wireguard_group }}' (without using the 'limit' option)"
+
+- name: Fetch wireguard keys from host
+  command: cat /etc/wireguard/wg0-private.key /etc/wireguard/wg0-public.key
+  changed_when: false
+  register: wg0_key_result
+
+- name: Load wireguard keys into ansible facts
+  set_fact:
+    wg0_privkey: "{{ wg0_key_result.stdout_lines[0] }}"
+    wg0_pubkey: "{{ wg0_key_result.stdout_lines[1] }}"
+
+- name: Create wireguard config
+  template:
+    src: wg0.conf
+    dest: /etc/wireguard/wg0.conf
+    mode: 0600
+
+- name: Include interfaces.d in interfaces
+  lineinfile:
+    path: /etc/network/interfaces
+    line: "source /etc/network/interfaces.d/*"
+
+- name: Create wireguard interfaces
+  template:
+    src: interface-wg0
+    dest: /etc/network/interfaces.d/wg0
+
+- name: Bring wireguard interface up
+  command: ifup wg0
+  register: ifup
+  changed_when: not 'already configured' in ifup.stderr
+
+- name: Reload wireguard device
+  command: wg setconf wg0 /etc/wireguard/wg0.conf
+  changed_when: false

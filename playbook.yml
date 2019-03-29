@@ -1,0 +1,46 @@
+---
+
+- hosts: all
+  gather_facts: false
+  tasks:
+    # doku?
+    - name: Install python for ansible
+      raw: |
+        dpkg -l python-simplejson && exit 42
+        apt-get update && apt-get -y install python-simplejson
+      register: python
+      failed_when: python.rc not in (0,42)
+      changed_when: python.rc!=42
+
+- hosts: all
+  tasks:
+    - name: Set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+    - name: Set better shell prompt
+      lineinfile:
+        path: /root/.bashrc
+        create: true
+        regexp: "^PS1\\s*="
+        line: "PS1='[\\[\\033[1;31m\\]\\u\\[\\033[0m\\]@\\H \\W]\\$ '"
+
+- hosts: all
+  roles:
+    - role: ssh
+      tags: ssh
+
+    - role: iptables
+      tags: iptables
+
+    - role: docker
+      tags: docker
+
+- hosts: wireguard
+  roles:
+    - role: wireguard
+      tags: wireguard
+
+- hosts: nfsclient
+  roles:
+    - role: nfsclient
+      tags: nfsclient

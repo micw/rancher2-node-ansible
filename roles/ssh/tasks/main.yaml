@@ -1,0 +1,22 @@
+---
+
+- name: Disable password login for root via ssh
+  lineinfile:
+    name: /etc/ssh/sshd_config
+    regexp: ^#?\s*PermitRootLogin\s*
+    line: PermitRootLogin without-password
+  notify: Reload sshd
+
+- meta: flush_handlers
+
+- when: ssh_admins is defined
+  name: Update authorized_keys
+  copy:
+    content: |
+      {% for admin in ssh_admins.split(',') %}
+      # {{ admin }}
+      {{ lookup('file','ssh_keys/'+admin+'.txt') }}
+
+      {% endfor %}
+    dest: /root/.ssh/authorized_keys
+    mode: 0700

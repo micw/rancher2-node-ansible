@@ -1,0 +1,25 @@
+# You can create one or more groups of hosts
+
+[rancher-server]
+# This server has docker installed with iptables enabled (e.g. to use as dedicated rancher2 server node)
+rancher2.mydomain.com docker_iptables=true
+
+[cluster1]
+# This three nodes 
+node1.mydomain.com wireguard_ip=172.16.0.1 wireguard_group=cluster1
+node2.mydomain.com wireguard_ip=172.16.0.2 wireguard_group=cluster1
+node3.mydomain.com wireguard_ip=172.16.0.3 wireguard_group=cluster1
+
+[nodes:children]
+# define a group containing all nodes
+rancher-server
+cluster1
+
+[nodes:vars]
+# set a list of ssh keys to add to these nodes
+ssh_admins=keyfile1,keyfile2
+
+[wireguard:children]
+# all children of the "wireguard" group get wireguard installed.
+# the var "wireguard_group" specifies an ansible group in which all nodes share the same wireguard-protected network
+cluster1
